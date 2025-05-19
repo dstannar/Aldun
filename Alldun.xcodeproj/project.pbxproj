@@ -29,9 +29,22 @@
 		40B519EA2DCAD3B50069B98D /* AlldunUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AlldunUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		40DE77902DCEB11A0035EB0A /* Exceptions for "Alldun" folder in "Alldun" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 40B519D22DCAD3B30069B98D /* Alldun */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		40B519D52DCAD3B30069B98D /* Alldun */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				40DE77902DCEB11A0035EB0A /* Exceptions for "Alldun" folder in "Alldun" target */,
+			);
 			path = Alldun;
 			sourceTree = "<group>";
 		};
@@ -43,6 +56,11 @@
 		40B519ED2DCAD3B50069B98D /* AlldunUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = AlldunUITests;
+			sourceTree = "<group>";
+		};
+		40DBAE1A2DD6B577006EFB9C /* Backend Integration */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Backend Integration";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -75,6 +93,7 @@
 		40B519CA2DCAD3B30069B98D = {
 			isa = PBXGroup;
 			children = (
+				40DBAE1A2DD6B577006EFB9C /* Backend Integration */,
 				40B519D52DCAD3B30069B98D /* Alldun */,
 				40B519E32DCAD3B50069B98D /* AlldunTests */,
 				40B519ED2DCAD3B50069B98D /* AlldunUITests */,
@@ -109,6 +128,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				40B519D52DCAD3B30069B98D /* Alldun */,
+				40DBAE1A2DD6B577006EFB9C /* Backend Integration */,
 			);
 			name = Alldun;
 			packageProductDependencies = (
@@ -395,10 +415,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = F4CRN4DB9M;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Alldun/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "Alldun needs access to your calendar to import events as tasks";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Need camera to take photos of task";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -424,10 +447,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = F4CRN4DB9M;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Alldun/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NSCalendarsUsageDescription = "Alldun needs access to your calendar to import events as tasks";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Need camera to take photos of task";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

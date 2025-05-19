@@ -1,4 +1,3 @@
-
 import SwiftUI // For ObservableObject, @Published
 import Foundation // For UUID
 
@@ -15,5 +14,5 @@ import Foundation // For UUID
 
 class AppNavigationState: ObservableObject {
     @Published var taskIDToOpen: UUID? = nil
+    @Published var triggerPhotoFlowForTaskID: UUID? = nil
 }
-// End of file

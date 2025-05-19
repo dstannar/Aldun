@@ -61,7 +61,7 @@ class CalendarImporter: ObservableObject {
 
         let calendars = eventStore.calendars(for: .event)
         let startDate = Date()
-        let endDate = Calendar.current.date(byAdding: .day, value: days, to: startDate) ?? startDate.addingTimeInterval(Double(days*24*60*60))
+        let endDate = Calendar.current.date(byAdding: .day, value: 30, to: startDate) ?? startDate.addingTimeInterval(Double(30*24*60*60))
 
         let predicate = eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: calendars)
         

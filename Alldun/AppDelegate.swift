@@ -1,4 +1,3 @@
-
 import UIKit
 import UserNotifications
 import SwiftUI // For Notification.Name extension or potential future use
@@ -20,8 +19,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                                 willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         
-        let taskID = notification.request.identifier
-        print("AppDelegate: Notification will be presented while app is in foreground for task ID: \(taskID)")
+        let identifier = notification.request.identifier
+        print("AppDelegate: Notification will be presented while app is in foreground for identifier: \(identifier)")
         
         completionHandler([.banner, .sound, .badge])
     }
@@ -30,17 +29,34 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                                 didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
         
-        let taskIDString = response.notification.request.identifier
-        print("AppDelegate: User tapped on notification for task ID string: \(taskIDString)")
-        
-        if let taskID = UUID(uuidString: taskIDString) {
-            print("AppDelegate: Posting .didRequestTaskOpen notification for taskID: \(taskID)")
-            NotificationCenter.default.post(name: .didRequestTaskOpen, object: nil, userInfo: ["taskID": taskID])
+        let userInfo = response.notification.request.content.userInfo
+        let rawIdentifier = response.notification.request.identifier
+        print("AppDelegate: User tapped on notification with raw identifier: \(rawIdentifier)")
+
+        // Extract base Task ID and notification type
+        var taskIDString: String?
+        if rawIdentifier.hasSuffix("_start") {
+            taskIDString = String(rawIdentifier.dropLast("_start".count))
+        } else if rawIdentifier.hasSuffix("_due") {
+            taskIDString = String(rawIdentifier.dropLast("_due".count))
         } else {
-            print("AppDelegate: Could not convert identifier to UUID: \(taskIDString)")
+            // Fallback for old identifiers or other notifications not following the new pattern
+            taskIDString = rawIdentifier
+        }
+        
+        let notificationType = userInfo["notificationType"] as? String
+
+        if let idStr = taskIDString, let taskID = UUID(uuidString: idStr) {
+            var notificationData: [AnyHashable: Any] = ["taskID": taskID]
+            if let type = notificationType {
+                notificationData["notificationType"] = type
+            }
+            print("AppDelegate: Posting .didRequestTaskOpen notification for taskID: \(taskID), type: \(notificationType ?? "unknown")")
+            NotificationCenter.default.post(name: .didRequestTaskOpen, object: nil, userInfo: notificationData)
+        } else {
+            print("AppDelegate: Could not convert base identifier part to UUID: \(taskIDString ?? "nil") from raw: \(rawIdentifier)")
         }
 
         completionHandler()
     }
 }
-// End of file

@@ -6,55 +6,83 @@ struct ProfileView: View {
     @EnvironmentObject var userStore: UserStore
     @EnvironmentObject var themeManager: ThemeManager
     @StateObject private var calendarImporter = CalendarImporter()
+
+    var userForProfile: User?
     
     @State private var showingCalendarAccessAlert = false
     @State private var currentCalendarError: CalendarImportError? = nil
-    @State private var fetchedEvents: [EKEvent]? = nil
+    @State private var fetchedEvents: [EKEvent] = []
     @State private var showingEventSelectionSheet = false
     @State private var importMessage: String? = nil
-    @State private var pushNotificationsEnabled: Bool = true
+    @State private var pushNotificationsEnabled: Bool = true // This might need to be per-user if settings are stored
     @State private var showingImagePickerForProfile = false
     @State private var newProfileUIImage: UIImage?
 
     @State private var isEditingBio: Bool = false
     @State private var editableBio: String = ""
 
-    private var currentUser: User? {
-        userStore.currentUser
+    private var displayedUser: User? {
+        userForProfile ?? userStore.currentUser
+    }
+
+    private var isViewingOwnProfile: Bool {
+        guard let displayed = displayedUser, let current = userStore.currentUser else {
+            return false // If either is nil, assume not own profile for safety
+        }
+        return displayed.id == current.id
     }
 
     var body: some View {
+        let _ = print("ProfileView.body: Re-evaluating. showingEventSelectionSheet: \(showingEventSelectionSheet), fetchedEvents count: \(fetchedEvents.count)")
         NavigationView {
             List {
                 // Section: User Information
-                if let user = currentUser {
+                if let user = displayedUser {
                     Section {
-                        VStack(spacing: 15) {
-                            HStack {
-                                Spacer()
-                                Group {
-                                    if let selectedUiImage = newProfileUIImage {
-                                        Image(uiImage: selectedUiImage)
-                                            .resizable()
-                                    } else if let imageName = user.profileImageName {
-                                        Image(imageName)
-                                            .resizable()
-                                    } else {
-                                        Image("default_avatar")
-                                            .resizable()
-                                    }
-                                }
-                                .scaledToFill()
-                                .frame(width: 100, height: 100)
-                                .clipShape(Circle())
-                                .overlay(Circle().stroke(Color.gray, lineWidth: 1))
-                                Spacer()
-                                Button("Edit") {
+                        VStack(alignment: .center, spacing: 15) {
+                            Button(action: {
+                                // This action is only for editing the profile picture
+                                if isViewingOwnProfile {
                                     self.showingImagePickerForProfile = true
                                 }
-                                .padding(.leading, -40)
-                                .padding(.top, -30)
+                            }) {
+                                ZStack(alignment: .bottomTrailing) {
+                                    Group {
+                                        // Profile image logic...
+                                        // If viewing own profile and newProfileUIImage exists, use it
+                                        if isViewingOwnProfile, let selectedUiImage = newProfileUIImage {
+                                            Image(uiImage: selectedUiImage)
+                                                .resizable()
+                                        } else if let imageName = user.profileImageName {
+                                            Image(imageName)
+                                                .resizable()
+                                        } else {
+                                            Image("default_avatar")
+                                                .resizable()
+                                        }
+                                    }
+                                    .scaledToFill()
+                                    .frame(width: 100, height: 100) // This frames the image content
+                                    .clipShape(Circle())
+                                    .overlay(Circle().stroke(Color.gray, lineWidth: 1))
+
+                                    if isViewingOwnProfile {
+                                        Image(systemName: "pencil.circle.fill")
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(width: 30, height: 30)
+                                            .foregroundColor(.accentColor)
+                                            .background(Circle().fill(Color(UIColor.systemBackground)))
+                                            .offset(x: 5, y: 5) // Adjust offset as needed
+                                            .allowsHitTesting(false) // So tap goes to the main button action
+                                    }
+                                }
+                                .frame(width: 100, height: 100) // Ensure the ZStack (Button's label) has this frame
                             }
+                            .buttonStyle(.plain) // Keeps default image appearance, doesn't add button chrome
+                            .contentShape(Circle())
+                            .frame(width: 100, height: 100)
+                            .padding(.bottom, 5) // Padding outside the tappable area of the button
 
 
                             Text(user.fullName)
@@ -63,7 +91,7 @@ struct ProfileView: View {
                                 .font(.subheadline)
                                 .foregroundColor(.gray)
                             
-                            if isEditingBio {
+                            if isViewingOwnProfile && isEditingBio {
                                 VStack {
                                     TextEditor(text: $editableBio)
                                         .frame(height: 100)
@@ -76,6 +104,7 @@ struct ProfileView: View {
                                         .buttonStyle(.bordered)
                                         Spacer()
                                         Button("Save Bio") {
+                                            // Make sure userStore.updateUserBio uses displayedUser.id
                                             userStore.updateUserBio(userID: user.id, newBio: editableBio)
                                             isEditingBio = false
                                         }
@@ -90,18 +119,50 @@ struct ProfileView: View {
                                         .multilineTextAlignment(.center)
                                         .padding(.horizontal)
                                         .onTapGesture {
-                                            editableBio = user.bio ?? ""
-                                            isEditingBio = true
+                                            if isViewingOwnProfile {
+                                                editableBio = user.bio ?? ""
+                                                isEditingBio = true
+                                            }
                                         }
                                 } else {
-                                    Button("(Tap to add bio)") {
-                                        editableBio = ""
-                                        isEditingBio = true
+                                    if isViewingOwnProfile {
+                                        Button("(Tap to add bio)") {
+                                            editableBio = ""
+                                            isEditingBio = true
+                                        }
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                    } else {
+                                        Text("(No bio provided)")
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                            .padding(.horizontal)
                                     }
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
                                 }
                             }
+                            
+                            if !user.friendIDs.isEmpty {
+                                NavigationLink(destination: FriendsListView(user: user)) {
+                                    HStack {
+                                        Spacer()
+                                        Text("\(user.friendIDs.count) Friend\(user.friendIDs.count == 1 ? "" : "s")")
+                                            .font(.subheadline)
+                                            .foregroundColor(.blue)
+                                        Spacer()
+                                    }
+                                }
+                                .padding(.top, 5)
+                            } else {
+                                HStack {
+                                    Spacer()
+                                    Text("0 Friends")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                }
+                                .padding(.top, 5)
+                            }
+
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical)
@@ -110,14 +171,16 @@ struct ProfileView: View {
                     .listRowBackground(Color(UIColor.systemGroupedBackground))
                 } else {
                     Section {
-                        Text("No user data found.")
+                        Text("User profile not available.")
                     }
                 }
                 
+                // Productivity Stats and Achievements can be shown for any user
+                // (Assuming data source can provide this for any user)
                 Section("Productivity Stats") {
-                    Text("5-Day Task Completion Streak: --")
-                    Text("Tasks Completed: --")
-                    Text("Most Active: --")
+                    Text("5-Day Task Completion Streak: --") // Placeholder, needs data for displayedUser
+                    Text("Tasks Completed: --") // Placeholder, needs data for displayedUser
+                    Text("Most Active: --") // Placeholder, needs data for displayedUser
                 }
 
                 Section("Achievements") {
@@ -131,56 +194,80 @@ struct ProfileView: View {
                     }
                 }
 
-                Section("Calendar Sync") {
-                    Button("Import Events from Calendar") {
-                        importMessage = nil
-                        currentCalendarError = nil
-                        calendarImporter.requestAccess { granted, error in
-                            if granted {
-                                calendarImporter.fetchUpcomingEvents { result in
-                                    DispatchQueue.main.async {
-                                        switch result {
-                                        case .success(let events):
-                                            if events.isEmpty {
-                                                self.importMessage = "No upcoming events found."
-                                                self.showingCalendarAccessAlert = true
-                                            } else {
-                                                self.fetchedEvents = events
+                if isViewingOwnProfile {
+                    Section("Calendar Sync") {
+                        Button("Import Events from Calendar") {
+                            print("ProfileView: 'Import Events' button tapped at \(Date())")
+                            importMessage = nil
+                            currentCalendarError = nil
+                            calendarImporter.requestAccess { granted, error in
+                                print("ProfileView: requestAccess completion. Granted: \(granted), Error: \(String(describing: error)) at \(Date())")
+                                if granted {
+                                    print("CalendarImport: Access granted. Starting fetch at \(Date())")
+                                    calendarImporter.fetchUpcomingEvents { result in
+                                        print("CalendarImport: Fetch completed at \(Date())")
+                                        DispatchQueue.main.async { // Ensure state updates are on main queue
+                                            switch result {
+                                            case .success(let eventsArray):
+                                                print("CalendarImport: Fetched \(eventsArray.count) events.")
+                                                self.fetchedEvents = eventsArray // Assign fetched events
+                                                if eventsArray.isEmpty {
+                                                    self.importMessage = "No upcoming events found."
+                                                    self.showingCalendarAccessAlert = true // If you want an alert for "no events found"
+                                                }
                                                 self.showingEventSelectionSheet = true
+                                                print("CalendarImport: EventSelectionSheet should now be shown. self.fetchedEvents count: \(self.fetchedEvents.count)")
+                                                
+                                            case .failure(let fetchError):
+                                                self.currentCalendarError = fetchError
+                                                self.fetchedEvents = [] // Clear events on failure
+                                                self.showingCalendarAccessAlert = true // Show error alert
+                                                print("CalendarImport: Fetch failed with error: \(fetchError) at \(Date())")
                                             }
-                                        case .failure(let fetchError):
-                                            self.currentCalendarError = fetchError
-                                            self.showingCalendarAccessAlert = true
                                         }
                                     }
+                                } else {
+                                    DispatchQueue.main.async { // Ensure state updates are on main queue
+                                        self.currentCalendarError = error ?? .accessDenied
+                                        self.fetchedEvents = [] // Clear events
+                                        self.showingCalendarAccessAlert = true // Show error alert
+                                        print("ProfileView: Calendar access denied or error occurred. Error: \(String(describing: self.currentCalendarError)) at \(Date())")
+                                    }
                                 }
-                            } else {
-                                self.currentCalendarError = error ?? .accessDenied
-                                self.showingCalendarAccessAlert = true
                             }
                         }
                     }
-                }
-                
-                Section("Settings") {
-                    NavigationLink("Privacy", destination: Text("Privacy Settings Screen (TODO)"))
-                    Toggle("Push Notifications", isOn: $pushNotificationsEnabled)
-                        .onChange(of: pushNotificationsEnabled) { _, newValue in
-                            print("Push notifications toggled to: \(newValue)")
+                    
+                    Section("Settings") {
+                        NavigationLink("Privacy", destination: Text("Privacy Settings Screen (TODO)"))
+                        Toggle("Push Notifications", isOn: $pushNotificationsEnabled)
+                            .onChange(of: pushNotificationsEnabled) { _, newValue in
+                                print("Push notifications toggled to: \(newValue)")
+                                // TODO: This setting should ideally be saved per user if not global
+                            }
+                        // .disabled(currentUser == nil)
+                        .disabled(!isViewingOwnProfile)
+                        Picker("Appearance", selection: $themeManager.currentScheme) {
+                            ForEach(AppearanceScheme.allCases) { scheme in
+                                Text(scheme.rawValue).tag(scheme)
+                            }
                         }
-                    Picker("Appearance", selection: $themeManager.currentScheme) {
-                        ForEach(AppearanceScheme.allCases) { scheme in
-                            Text(scheme.rawValue).tag(scheme)
+                        Button(action: {
+                            userStore.logout()
+                        }) {
+                            Text("Log Out")
+                                .foregroundColor(.red)
                         }
+                        // .disabled(currentUser == nil)
+                        .disabled(!isViewingOwnProfile) // Or perhaps just !userStore.isUserLoggedIn
                     }
-                    // Add more settings later
                 }
 
             }
             .listStyle(GroupedListStyle())
-            .navigationTitle("User Profile & Settings")
+            .navigationTitle(isViewingOwnProfile ? "User Profile & Settings" : (displayedUser != nil ? "\(displayedUser!.username)'s Profile" : "Profile"))
             .navigationBarTitleDisplayMode(.inline)
-            .alert("Calendar Information", isPresented: $showingCalendarAccessAlert, presenting: self.currentCalendarError) { anErrorPresented in
+            .alert("Calendar Information", isPresented: $showingCalendarAccessAlert, presenting: currentCalendarError) { anErrorPresented in
                  Button("OK") { }
             } message: { anErrorPresented in
                 if let msg = importMessage, self.currentCalendarError == nil { Text(msg) }
@@ -189,18 +276,28 @@ struct ProfileView: View {
                 else { Text("An unknown issue occurred.") }
             }
             .sheet(isPresented: $showingEventSelectionSheet, content: {
-                if let events = fetchedEvents {
-                    EventSelectionView(events: events, taskStore: taskStore, importMessage: $importMessage, showingCalendarAccessAlert: $showingCalendarAccessAlert)
-                        .environmentObject(userStore)
-                } else { Text("No events to display.") }
+                let _ = print("ProfileView.sheet.content: Evaluating. showingEventSelectionSheet is \(showingEventSelectionSheet). fetchedEvents count: \(fetchedEvents.count)")
+                
+                EventSelectionView(events: fetchedEvents,
+                                   taskStore: taskStore,
+                                   importMessage: $importMessage,
+                                   showingCalendarAccessAlert: $showingCalendarAccessAlert)
+                    .environmentObject(userStore)
             })
             .sheet(isPresented: $showingImagePickerForProfile) {
                 ImagePicker(selectedImage: self.$newProfileUIImage, sourceType: .photoLibrary)
             }
             .onAppear {
-                print("ProfileView appeared. Current user: \(currentUser?.username ?? "None")")
+                print("ProfileView appeared. Displaying profile for: \(displayedUser?.username ?? "None"). Is own profile: \(isViewingOwnProfile)")
+                if isViewingOwnProfile {
+                    // Load editableBio from displayedUser if editing own profile
+                    editableBio = displayedUser?.bio ?? ""
+                    // Potentially load push notification status for the current user
+                    // pushNotificationsEnabled = userStore.currentUser?.settings.pushNotificationsEnabled ?? true
+                }
             }
         }
+        .navigationViewStyle(StackNavigationViewStyle()) // Useful on iPad/macOS
     }
 
     private func errorMessage(for error: CalendarImportError) -> String {
@@ -238,6 +335,7 @@ struct EventRowView: View {
     }
 
     var body: some View {
+        let _ = print("EventRowView: Displaying event '\(event.title ?? "N/A")' with ID '\(event.eventIdentifier ?? "NO ID")'")
         HStack {
             VStack(alignment: .leading) {
                 Text(event.title ?? "No Title")
@@ -286,6 +384,7 @@ struct EventSelectionView: View {
     @Binding var showingCalendarAccessAlert: Bool
 
     var body: some View {
+        let _ = print("EventSelectionView: FULL body evaluated. Received \(events.count) events. First event title: \(events.first?.title ?? "N/A (or list was empty)")")
         NavigationView {
             VStack {
                 if events.isEmpty {
@@ -310,49 +409,81 @@ struct EventSelectionView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Import Selected") {
                         importSelectedEvents()
-                        dismiss()
+                        // dismiss() // Already in importSelectedEvents, but ensure it's consistent
                     }
                     .disabled(selectedEventIDs.isEmpty)
                 }
             }
         }
+        .onAppear { // Keep this for good measure
+            print("EventSelectionView: .onAppear. Received \(events.count) events.")
+        }
     }
 
     private func importSelectedEvents() {
         var importedCount = 0
-        guard let placeholderUserID = userStore.allUsers.first?.id else {
-            print("EventSelectionView importSelectedEvents: ERROR - No users available in UserStore to assign to Task.")
-            self.importMessage = "Error: Could not assign tasks to a user. Please try again."
+        guard let currentUserID = userStore.currentUser?.id else {
+            print("EventSelectionView importSelectedEvents: ERROR - Current user is not available.")
+            self.importMessage = "Error: Could not assign tasks. Please ensure you are logged in and try again."
             self.showingCalendarAccessAlert = true
             return
         }
 
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+
+        let existingTaskIdentifiers: Set<String> = Set(taskStore.tasks.filter { $0.userID == currentUserID }.map { task in
+            let title = task.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let dayString = dateFormatter.string(from: task.dueDate)
+            return "\(title)|\(dayString)|\(task.userID)"
+        })
+
+        var newTasksToAdd: [Task] = []
+
         for eventID in selectedEventIDs {
             if let event = events.first(where: { $0.eventIdentifier == eventID }) {
-                let existingTask = taskStore.tasks.first { $0.title == (event.title ?? "Untitled Event") && Calendar.current.isDate($0.dueDate, inSameDayAs: event.startDate) }
+                let eventTitle = (event.title ?? "Untitled Event").trimmingCharacters(in: .whitespacesAndNewlines)
+                let eventStartDate = event.startDate ?? Date()
+                let eventDayString = dateFormatter.string(from: eventStartDate)
+                let taskIdentifierForEvent = "\(eventTitle)|\(eventDayString)|\(currentUserID)"
 
-                if existingTask == nil {
+                if !existingTaskIdentifiers.contains(taskIdentifierForEvent) {
                     let newTask = Task(
-                        title: event.title ?? "Untitled Event",
-                        dueDate: event.startDate ?? Date(),
+                        title: eventTitle,
+                        dueDate: eventStartDate,
+                        completionStyle: .singleImage,
                         isCompleted: false,
-                        userID: placeholderUserID
+                        taskType: .miscellaneous,
+                        priority: .medium,
+                        userID: currentUserID
                     )
-                    taskStore.tasks.append(newTask)
-                    taskStore.scheduleNotification(for: newTask)
+                    newTasksToAdd.append(newTask)
                     importedCount += 1
                 } else {
-                    print("Skipping duplicate event: \(event.title ?? "Untitled Event")")
+                    print("Skipping duplicate event for current user: \(eventTitle)")
                 }
             }
         }
+        
+        if !newTasksToAdd.isEmpty {
+            print("EventSelectionView: Attempting to add \(newTasksToAdd.count) new tasks to TaskStore.")
+            for task in newTasksToAdd {
+                print("EventSelectionView: Adding task - Title: '\(task.title)', Due: \(task.dueDate), UserID: \(task.userID), TaskID: \(task.id)")
+            }
+            taskStore.tasks.append(contentsOf: newTasksToAdd)
+            for task in newTasksToAdd {
+                taskStore.scheduleNotification(for: task)
+            }
+        }
+
         if importedCount > 0 {
             importMessage = "Successfully imported \(importedCount) event(s) as tasks."
         } else if !selectedEventIDs.isEmpty && importedCount == 0 {
-             importMessage = "Selected event(s) already exist as tasks or could not be imported."
+             importMessage = "Selected event(s) already exist as tasks for you or could not be imported."
         } else {
             importMessage = "No new events were imported."
         }
         showingCalendarAccessAlert = true
+        dismiss()
     }
 }
